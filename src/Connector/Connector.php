@@ -50,13 +50,14 @@ final class Connector extends ConnectorTimer
         $this->query_queue = new \SplQueue;
     }
 
-    public function connect() : void
+    public function connect() : Connector
     {
         if(isset($this->mysqli) && $this->mysqli->ping()) return;
         $this->mysqli = new MysqliConnector($this->user,$this->password,$this->host,$this->port,$this->database,$this->socket,$this->connection_timeout);
         $this->mysqli->id = $this->id;
         mysqli_options($this->mysqli, MYSQLI_OPT_CONNECT_TIMEOUT, $this->connection_timeout);
         $this->mysqli->connect($this->host, $this->user, $this->password, $this->database, $this->port, $this->socket);
+        return $this;
     }
 
     public function ping() : bool
