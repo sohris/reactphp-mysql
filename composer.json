@@ -1,7 +1,9 @@
 {
     "name": "sohris/reactphp-mysql",
     "description": "A ReactPHP-based repository for creating asynchronous and parallel connections to MySQL databases",
+    "version": "0.1.1",
     "require": {
+        "php": "^8.0",
         "react/event-loop": "^1.5",
         "react/promise": "^3.2"
     },
