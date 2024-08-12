@@ -3,9 +3,9 @@
 
 require __DIR__."/../vendor/autoload.php";
 
-$user = "rdanieli";
-$password = "mdm239860@";
-$host = "192.168.0.11";
+$user = "user";
+$password = "pass";
+$host = "host";
 $port = 3306;
 
 //Create a connection

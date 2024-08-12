@@ -4,6 +4,7 @@ namespace Sohris\Mysql\Connector;
 
 use Exception;
 use React\Promise\Deferred;
+use React\Promise\PromiseInterface;
 use Sohris\Mysql\Io\Query;
 use Sohris\Mysql\Io\QueryExecution;
 use Sohris\Mysql\Io\QueryResult;
@@ -49,7 +50,7 @@ final class Connector extends ConnectorTimer
         $this->query_queue = new \SplQueue;
     }
 
-    public function connect()
+    public function connect() : void
     {
         if(isset($this->mysqli) && $this->mysqli->ping()) return;
         $this->mysqli = new MysqliConnector($this->user,$this->password,$this->host,$this->port,$this->database,$this->socket,$this->connection_timeout);
@@ -58,25 +59,24 @@ final class Connector extends ConnectorTimer
         $this->mysqli->connect($this->host, $this->user, $this->password, $this->database, $this->port, $this->socket);
     }
 
-    public function ping()
+    public function ping() : bool
     {
         $this->connect();
         return $this->mysqli->ping();
     }
 
-
-    public function __destruct()
+    public function __destruct() 
     {
         $this->mysqli->close();
     }
 
-    public function setOption(int $mysqli_option, $value)
+    public function setOption(int $mysqli_option, $value) : Connector
     {
         mysqli_options($this->mysqli, $mysqli_option, $value);
         return $this;
     }
 
-    public function setOptions(array $mysqli_options = [])
+    public function setOptions(array $mysqli_options = []) : Connector
     {
         foreach($mysqli_options as $option => $value)
             mysqli_options($this->mysqli, $option, $value);
@@ -84,7 +84,7 @@ final class Connector extends ConnectorTimer
         return $this;
     }
 
-    public function finish()
+    public function finish(): void
     {
         $cur = $this->query_queue->current();
         try {
@@ -105,6 +105,7 @@ final class Connector extends ConnectorTimer
         } catch (Exception $e) {
             $cur->deferred->reject($e);
         }
+
         mysqli_next_result($this->mysqli);
         if ($result = mysqli_store_result($this->mysqli))
             mysqli_free_result($result);
@@ -114,7 +115,7 @@ final class Connector extends ConnectorTimer
         $this->checkQueue();
     }
 
-    public function query(string $query, ?array $parameters = [])
+    public function query(string $query, ?array $parameters = []) : PromiseInterface
     {
         $execution = new QueryExecution(new Query($query, $parameters),new Deferred());
         $this->query_queue->enqueue($execution);
@@ -123,7 +124,7 @@ final class Connector extends ConnectorTimer
         return $execution->promise();
     }
 
-    private function checkQueue()
+    private function checkQueue() : void
     {
         if($this->query_queue->isEmpty() || $this->is_running){
             return;
@@ -136,6 +137,11 @@ final class Connector extends ConnectorTimer
         $this->mysqli->query($cur->query->getSQL(), MYSQLI_ASYNC | MYSQLI_STORE_RESULT);
         $this->running();
 
+    }
+
+    public function size() : int
+    {
+        return $this->query_queue->count();
     }
 
 
