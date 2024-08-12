@@ -46,8 +46,11 @@ abstract class ConnectorTimer
             return;
 
         foreach ($links as $key => &$connection) {
-            self::$connectors[$connection->id]->finish();
+
+            $conn = self::$connectors[$connection->id];
             unset(self::$connectors[$connection->id]);
+            
+            $conn->finish();
             // TODO Create a dynamic pool size
             // if (self::$min_pool < count(self::$connectors))
             //     unset(self::$connectors[$connection->id]);

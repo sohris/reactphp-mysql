@@ -5,6 +5,7 @@ namespace Sohris\Mysql\Connector;
 use Exception;
 use React\Promise\Deferred;
 use Sohris\Mysql\Io\Query;
+use Sohris\Mysql\Io\QueryExecution;
 use Sohris\Mysql\Io\QueryResult;
 
 final class Connector extends ConnectorTimer
@@ -17,13 +18,15 @@ final class Connector extends ConnectorTimer
     private ?string $database;
     private ?string $socket;
     private ?int $connection_timeout;
+    private bool $is_running = false;
 
-
-    private Deferred $deferred;
-    public bool $running = false;
+    /**
+     * A queue from queries to execute 
+     * @var \SplQueue 
+     */
+    private \SplQueue $query_queue;
 
     protected MysqliConnector $mysqli;
-    protected Query $query;
 
 
     public function __construct(
@@ -43,6 +46,7 @@ final class Connector extends ConnectorTimer
         $this->database = $database;
         $this->socket = $socket;
         $this->connection_timeout = $connection_timeout;
+        $this->query_queue = new \SplQueue;
     }
 
     public function connect()
@@ -82,10 +86,11 @@ final class Connector extends ConnectorTimer
 
     public function finish()
     {
+        $cur = $this->query_queue->current();
         try {
             if (!$result = $this->mysqli->reap_async_query()) {
                 $exception = new Exception($this->mysqli->error, $this->mysqli->errno);
-                $this->deferred->reject($exception);
+                $cur->deferred->reject($exception);
             } else {
                 $query_result = new QueryResult();
                 if ($result === true && $this->mysqli->insert_id) {
@@ -95,29 +100,44 @@ final class Connector extends ConnectorTimer
                     $query_result->resultRows = $result->fetch_all(MYSQLI_ASSOC);
                 }
 
-                $this->deferred->resolve($query_result);
+                $cur->deferred->resolve($query_result);
             }
         } catch (Exception $e) {
-            $this->deferred->reject($e);
+            $cur->deferred->reject($e);
         }
-        unset($this->deferred);
         mysqli_next_result($this->mysqli);
         if ($result = mysqli_store_result($this->mysqli))
             mysqli_free_result($result);
 
-        $this->running = false;
+        $this->query_queue->dequeue();
+        $this->is_running = false;
+        $this->checkQueue();
     }
 
     public function query(string $query, ?array $parameters = [])
     {
-        if(!isset($this->mysqli))
-            $this->connect();
-        $this->query = new Query($query, $parameters);
-        $this->deferred = new Deferred();
+        $execution = new QueryExecution(new Query($query, $parameters),new Deferred());
+        $this->query_queue->enqueue($execution);
 
-        $this->running = true;
-        $this->mysqli->query($this->query->getSQL(), MYSQLI_ASYNC | MYSQLI_STORE_RESULT);
-        $this->running();
-        return $this->deferred->promise();
+        $this->checkQueue();
+        return $execution->promise();
     }
+
+    private function checkQueue()
+    {
+        if($this->query_queue->isEmpty() || $this->is_running){
+            return;
+        }
+            
+        $this->is_running = true;
+        $this->query_queue->rewind();
+        $this->connect();
+        $cur = $this->query_queue->current();
+        $this->mysqli->query($cur->query->getSQL(), MYSQLI_ASYNC | MYSQLI_STORE_RESULT);
+        $this->running();
+
+    }
+
+
+
 }
