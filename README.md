@@ -1,5 +1,7 @@
 # Sohris ReactPHP Mysql 
 
+[![Build](https://github.com/sohris/reactphp-mysql/actions/workflows/php.yml/badge.svg)](https://github.com/sohris/reactphp-mysql/actions/workflows/php.yml)
+
 ReactPHP MySQL is a package that provides an asynchronous connection to MySQL databases, enabling non-blocking execution for high-performance operations. Utilizing an event-driven model, it allows the creation of a connection pool, where multiple connection threads to the database are established. This enables parallel execution of scripts and queries, optimizing processing and operational efficiency.
 
 ## Features
